@@ -90,6 +90,16 @@ sudo vi /etc/systemd/system/cri-docker.service
     ExecStart=/usr/local/bin/cri-dockerd --container-runtime-endpoint fd://
     #Make sure this is correct. If it's still pointing to /usr/bin/cri-dockerd, change it to /usr/local/bin/cri-dockerd.
 ```
+### Before restarting stop containerd
+```bash
+sudo systemctl stop containerd
+sudo systemctl disable containerd
+sudo systemctl mask containerd
+sudo rm -f /run/containerd/containerd.sock
+```
+
+
+
 ### Now restart the Services:
 ```bash
 sudo systemctl daemon-reexec
