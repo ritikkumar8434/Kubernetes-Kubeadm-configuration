@@ -38,10 +38,12 @@ sudo sysctl --system
 
 ### Install Docker & cri-dockerd
 ```bash
-sudo dnf install -y yum-utils device-mapper-persistent-data lvm2
+sudo dnf install -y yum-utils
 sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 sudo dnf install -y docker-ce docker-ce-cli containerd.io
+
 sudo systemctl enable --now docker
+
 ```
 
 # Install cri-dockerd
