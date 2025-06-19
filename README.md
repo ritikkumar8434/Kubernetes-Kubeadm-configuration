@@ -46,17 +46,6 @@ sudo systemctl enable --now docker
 
 ```
 
-# Install cri-dockerd
-```bash
-git clone https://github.com/Mirantis/cri-dockerd.git
-cd cri-dockerd
-mkdir bin && go build -o bin/cri-dockerd
-sudo cp bin/cri-dockerd /usr/bin/
-sudo cp -a packaging/systemd/* /etc/systemd/system/
-sudo sed -i 's:/usr/bin/cri-dockerd:/usr/bin/cri-dockerd:' /etc/systemd/system/cri-docker.service
-sudo systemctl daemon-reexec
-sudo systemctl enable --now cri-docker.service
-```
 
 ### Install Kubernetes Tools
 ```bash
