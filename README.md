@@ -36,16 +36,50 @@ sudo sysctl --system
 
 
 
-### Install Docker & cri-dockerd
+### Install Docker (Recommended with CLI Plugin)
 ```bash
-sudo dnf install -y yum-utils
-sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-sudo dnf install -y docker-ce docker-ce-cli containerd.io
+sudo yum remove -y docker docker-client docker-client-latest docker-common docker-latest \
+  docker-latest-logrotate docker-logrotate docker-engine
 
+sudo yum install -y yum-utils device-mapper-persistent-data lvm2
+
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+```
+### Configure Docker to Use systemd CGroup Driver (for Kubernetes)
+```bash
+sudo mkdir -p /etc/docker
+
+cat <<EOF | sudo tee /etc/docker/daemon.json
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "storage-driver": "overlay2"
+}
+EOF
+
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
 sudo systemctl enable --now docker
 
 ```
-
+### Install cri-dockerd
+```bash
+sudo yum install -y wget tar
+yum install git
+cd /tmp
+wget https://go.dev/dl/go1.23.10.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf go1.23.10.linux-amd64.tar.gz
+echo "export PATH=\$PATH:/usr/local/go/bin" >> ~/.bashrc
+source ~/.bashrc
+go version
+```
 
 ### Install Kubernetes Tools
 ```bash
@@ -66,32 +100,30 @@ sudo dnf install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
 sudo systemctl enable --now kubelet
 ```
 
-### Optional- If kubeadm is not initialized due to using of containerd instead of cri-dockerd
+### Clone and Build cri-dockerd
 ```bash
-sudo dnf install -y git make golang go
 git clone https://github.com/Mirantis/cri-dockerd.git
 cd cri-dockerd
-mkdir bin
+mkdir -p bin
 go build -o bin/cri-dockerd
-sudo install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
-sudo cp -a packaging/systemd/* /etc/systemd/system/
-sudo vi /etc/systemd/system/cri-docker.service
-  #Check if the ExecStart= line looks like:
-  
-    ExecStart=/usr/local/bin/cri-dockerd --container-runtime-endpoint fd://
-    #Make sure this is correct. If it's still pointing to /usr/bin/cri-dockerd, change it to /usr/local/bin/cri-dockerd.
+
 ```
-### Before restarting stop containerd
+### Install Binary
 ```bash
-sudo systemctl stop containerd
-sudo systemctl disable containerd
-sudo systemctl mask containerd
-sudo rm -f /run/containerd/containerd.sock
+sudo cp bin/cri-dockerd /usr/local/bin/
+
+```
+### Install systemd Service for cri-dockerd
+```bash
+sudo cp -a packaging/systemd/* /etc/systemd/system/
+
+# Fix binary path in systemd service
+sudo sed -i 's:/usr/bin/cri-dockerd:/usr/local/bin/cri-dockerd:' /etc/systemd/system/cri-docker.service
+
 ```
 
 
-
-### Now restart the Services:
+### Start and Enable cri-dockerd
 ```bash
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
@@ -114,6 +146,12 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ### Install Calico CNI
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/calico.yaml
+```
+
+### If calico not installed from the github:
+```
+curl -O https://raw.githubusercontent.com/projectcalico/calico/v3.25.1/manifests/calico.yaml
+kubectl apply -f calico.yaml
 ```
 
 ### Generate a token for worker nodes to join:
